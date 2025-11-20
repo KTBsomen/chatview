@@ -1,0 +1,43 @@
+name: chatview
+description: A Flutter package that allows you to integrate Chat View with highly customization options.
+version: 2.4.0
+issue_tracker: https://github.com/SimformSolutionsPvtLtd/flutter_chatview/issues
+repository: https://github.com/SimformSolutionsPvtLtd/flutter_chatview
+
+platforms:
+  android:
+  ios:
+  web:
+  macos:
+  windows:
+  linux:
+
+environment:
+  sdk: '>=3.2.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  intl: ^0.20.2
+  url_launcher: ^6.3.0
+  emoji_picker_flutter: ^4.3.0
+  any_link_preview: ^3.0.2
+  image_picker: '>=0.8.9 <2.0.0'
+  audio_waveforms: ^1.2.0
+  # For formatting time locale in message receipts
+  cached_network_image: ^3.4.1
+  video_player:
+  vs_media_picker: ^1.0.4
+  flutterdb: ^0.0.4
+  chewie: ^1.10.0
+  dio: ^5.8.0+1
+  video_thumbnail: ^0.5.6
+  # awesome_video_player: ^1.0.0
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+
+flutter:
+
