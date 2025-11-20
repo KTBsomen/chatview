@@ -32,17 +32,19 @@ import '../../chatview.dart';
 import '../utils/debounce.dart';
 import '../utils/package_strings.dart';
 import 'package:vs_media_picker/vs_media_picker.dart';
+import 'package:geolocator/geolocator.dart';
 
 class ChatUITextField extends StatefulWidget {
-  const ChatUITextField({
-    Key? key,
+  ChatUITextField({
+    super.key,
     this.sendMessageConfig,
     required this.focusNode,
     required this.textEditingController,
     required this.onPressed,
     required this.onRecordingComplete,
     required this.onImageSelected,
-  }) : super(key: key);
+    this.onLocationSelected,
+  });
 
   /// Provides configuration of default text field in chat.
   final SendMessageConfiguration? sendMessageConfig;
@@ -62,11 +64,15 @@ class ChatUITextField extends StatefulWidget {
   /// Provides callback when user select images from camera/gallery.
   final PickedAssetCallBack onImageSelected;
 
+  /// Provides location callbacks
+  Function(String)? onLocationSelected;
+
   @override
   State<ChatUITextField> createState() => _ChatUITextFieldState();
 }
 
-class _ChatUITextFieldState extends State<ChatUITextField> {
+class _ChatUITextFieldState extends State<ChatUITextField>
+    with TickerProviderStateMixin {
   final ValueNotifier<String> _inputText = ValueNotifier('');
 
   final ImagePicker _imagePicker = ImagePicker();
@@ -99,6 +105,9 @@ class _ChatUITextFieldState extends State<ChatUITextField> {
       ValueNotifier(TypeWriterStatus.typed);
 
   late Debouncer debouncer;
+  late AnimationController attachController;
+  late Animation<double> rotateAnimation;
+  bool showAttachOptions = false;
 
   @override
   void initState() {
@@ -107,7 +116,14 @@ class _ChatUITextFieldState extends State<ChatUITextField> {
         sendMessageConfig?.textFieldConfig?.compositionThresholdTime ??
             const Duration(seconds: 1));
     super.initState();
+    attachController = AnimationController(
+      vsync: this,
+      duration: Duration(milliseconds: 300),
+    );
 
+    rotateAnimation = Tween(begin: 0.0, end: 0.5).animate(
+      CurvedAnimation(parent: attachController, curve: Curves.easeOut),
+    );
     if (!kIsWeb && (Platform.isIOS || Platform.isAndroid)) {
       controller = RecorderController();
     }
@@ -119,6 +135,8 @@ class _ChatUITextFieldState extends State<ChatUITextField> {
     composingStatus.dispose();
     isRecording.dispose();
     _inputText.dispose();
+    attachController.dispose();
+
     super.dispose();
   }
 
@@ -228,41 +246,125 @@ class _ChatUITextFieldState extends State<ChatUITextField> {
                     return Row(
                       children: [
                         if (!isRecordingValue) ...[
+                          /// NEW: LOCATION BUTTON
+                          // _buildAnimatedButton(
+                          //   visible: showAttachOptions,
+                          //   offset: const Offset(0.5, 0),
+                          //   icon: const Icon(Icons.location_on,
+                          //       color: Colors.white),
+                          //   onTap: () async {
+                          //     await getLocation();
+                          //   },
+                          // ),
+
+                          /// NEW: VIDEO CAMERA
+                          _buildAnimatedButton(
+                            visible: showAttachOptions,
+                            offset: const Offset(0.4, 0),
+                            icon: Icon(Icons.videocam,
+                                color: imagePickerIconsConfig?.cameraIconColor),
+                            onTap: () async {
+                              final XFile? video = await _imagePicker.pickVideo(
+                                source: ImageSource.camera,
+                                preferredCameraDevice: CameraDevice.rear,
+                              );
+                              if (video == null) return;
+                              widget.onImageSelected([
+                                PickedAssetModel(
+                                  id: video.name,
+                                  path: video.path,
+                                  type: "video",
+                                  file: File(video.path),
+                                )
+                              ], '', false);
+                            },
+                          ),
+
+                          // /// NEW: FILE PICKER (PDF, DOC, ZIP…)
+                          // _buildAnimatedButton(
+                          //   visible: showAttachOptions,
+                          //   offset: const Offset(0.4, 0),
+                          //   icon: const Icon(Icons.insert_drive_file,
+                          //       color: Colors.white),
+                          //   onTap: () async {
+                          //     /// YOU plug in your file picker here:
+                          //     /// e.g. file_picker plugin
+                          //     /*
+                          //     FilePickerResult? result = await FilePicker.platform.pickFiles();
+                          //     if (result != null) { ... }
+                          //     */
+
+                          //     widget.onImageSelected(
+                          //         [], "file_picker_request", false);
+                          //   },
+                          // ),
+
+                          /// CAMERA ICON (Animated)
                           if (sendMessageConfig?.enableCameraImagePicker ??
                               true)
-                            IconButton(
-                              constraints: const BoxConstraints(),
-                              onPressed: (textFieldConfig?.enabled ?? true)
-                                  ? () => _onIconPressed(
-                                        ImageSource.camera,
-                                        config: sendMessageConfig
-                                            ?.imagePickerConfiguration,
-                                      )
-                                  : null,
+                            _buildAnimatedButton(
+                              visible: showAttachOptions,
+                              offset: const Offset(0.3, 0),
                               icon: imagePickerIconsConfig
                                       ?.cameraImagePickerIcon ??
-                                  Icon(
-                                    Icons.camera_alt_outlined,
-                                    color:
-                                        imagePickerIconsConfig?.cameraIconColor,
-                                  ),
+                                  Icon(Icons.camera_alt_outlined,
+                                      color: imagePickerIconsConfig
+                                          ?.cameraIconColor),
+                              onTap: () => _onIconPressed(
+                                ImageSource.camera,
+                                config:
+                                    sendMessageConfig?.imagePickerConfiguration,
+                              ),
                             ),
+
+                          /// GALLERY ICON (Animated)
                           if (sendMessageConfig?.enableGalleryImagePicker ??
                               true)
-                            IconButton(
-                              constraints: const BoxConstraints(),
-                              onPressed: (textFieldConfig?.enabled ?? true)
-                                  ? () => show(context)
-                                  : null,
+                            _buildAnimatedButton(
+                              visible: showAttachOptions,
+                              offset: const Offset(0.2, 0),
                               icon: imagePickerIconsConfig
                                       ?.galleryImagePickerIcon ??
-                                  Icon(
-                                    Icons.image,
-                                    color: imagePickerIconsConfig
-                                        ?.galleryIconColor,
-                                  ),
+                                  Icon(Icons.image,
+                                      color: imagePickerIconsConfig
+                                          ?.galleryIconColor),
+                              onTap: () => show(context),
                             ),
+
+                          /// ATTACHMENT TOGGLER (rotates)
                         ],
+                        if (!isRecordingValue)
+                          AnimatedBuilder(
+                            animation: rotateAnimation,
+                            builder: (_, child) {
+                              return Transform.rotate(
+                                angle: rotateAnimation.value * 3.14,
+                                child: IconButton(
+                                  icon: Icon(
+                                    showAttachOptions
+                                        ? Icons.close
+                                        : Icons.attach_file,
+                                    color: showAttachOptions
+                                        ? Colors.white
+                                        : imagePickerIconsConfig
+                                            ?.galleryIconColor,
+                                  ),
+                                  onPressed: () {
+                                    setState(() {
+                                      showAttachOptions = !showAttachOptions;
+                                      if (showAttachOptions) {
+                                        attachController.forward();
+                                      } else {
+                                        attachController.reverse();
+                                      }
+                                    });
+                                  },
+                                ),
+                              );
+                            },
+                          ),
+
+                        /// VOICE RECORD LOGIC
                         if ((sendMessageConfig?.allowRecordingVoice ?? false) &&
                             !kIsWeb &&
                             (Platform.isIOS || Platform.isAndroid))
@@ -279,6 +381,8 @@ class _ChatUITextFieldState extends State<ChatUITextField> {
                                       voiceRecordingConfig?.recorderIconColor,
                                 ),
                           ),
+
+                        /// CANCEL RECORD BUTTON
                         if (isRecordingValue &&
                             cancelRecordConfiguration != null)
                           IconButton(
@@ -293,6 +397,75 @@ class _ChatUITextFieldState extends State<ChatUITextField> {
                           ),
                       ],
                     );
+
+                    // return Row(
+                    //   children: [
+                    //     if (!isRecordingValue) ...[
+                    //       if (sendMessageConfig?.enableCameraImagePicker ??
+                    //           true)
+                    //         IconButton(
+                    //           constraints: const BoxConstraints(),
+                    //           onPressed: (textFieldConfig?.enabled ?? true)
+                    //               ? () => _onIconPressed(
+                    //                     ImageSource.camera,
+                    //                     config: sendMessageConfig
+                    //                         ?.imagePickerConfiguration,
+                    //                   )
+                    //               : null,
+                    //           icon: imagePickerIconsConfig
+                    //                   ?.cameraImagePickerIcon ??
+                    //               Icon(
+                    //                 Icons.camera_alt_outlined,
+                    //                 color:
+                    //                     imagePickerIconsConfig?.cameraIconColor,
+                    //               ),
+                    //         ),
+                    //       if (sendMessageConfig?.enableGalleryImagePicker ??
+                    //           true)
+                    //         IconButton(
+                    //           constraints: const BoxConstraints(),
+                    //           onPressed: (textFieldConfig?.enabled ?? true)
+                    //               ? () => show(context)
+                    //               : null,
+                    //           icon: imagePickerIconsConfig
+                    //                   ?.galleryImagePickerIcon ??
+                    //               Icon(
+                    //                 Icons.image,
+                    //                 color: imagePickerIconsConfig
+                    //                     ?.galleryIconColor,
+                    //               ),
+                    //         ),
+                    //     ],
+                    //     if ((sendMessageConfig?.allowRecordingVoice ?? false) &&
+                    //         !kIsWeb &&
+                    //         (Platform.isIOS || Platform.isAndroid))
+                    //       IconButton(
+                    //         onPressed: (textFieldConfig?.enabled ?? true)
+                    //             ? _recordOrStop
+                    //             : null,
+                    //         icon: (isRecordingValue
+                    //                 ? voiceRecordingConfig?.stopIcon
+                    //                 : voiceRecordingConfig?.micIcon) ??
+                    //             Icon(
+                    //               isRecordingValue ? Icons.stop : Icons.mic,
+                    //               color:
+                    //                   voiceRecordingConfig?.recorderIconColor,
+                    //             ),
+                    //       ),
+                    //     if (isRecordingValue &&
+                    //         cancelRecordConfiguration != null)
+                    //       IconButton(
+                    //         onPressed: () {
+                    //           cancelRecordConfiguration?.onCancel?.call();
+                    //           _cancelRecording();
+                    //         },
+                    //         icon: cancelRecordConfiguration?.icon ??
+                    //             const Icon(Icons.cancel_outlined),
+                    //         color: cancelRecordConfiguration?.iconColor ??
+                    //             voiceRecordingConfig?.recorderIconColor,
+                    //       ),
+                    //   ],
+                    // );
                   }
                 },
               ),
@@ -351,7 +524,7 @@ class _ChatUITextFieldState extends State<ChatUITextField> {
     ImagePickerConfiguration? config,
   }) async {
     try {
-      final XFile? image = await _imagePicker.pickVideo(
+      final XFile? image = await _imagePicker.pickImage(
         source: imageSource,
         // maxHeight: config?.maxHeight,
         // maxWidth: config?.maxWidth,
@@ -369,8 +542,9 @@ class _ChatUITextFieldState extends State<ChatUITextField> {
       widget.onImageSelected([
         PickedAssetModel(
           id: image?.name,
+          title: image?.name,
           path: imagePath,
-          type: "video",
+          type: "image",
           file: File(image!.path),
         )
       ], '', false);
@@ -582,5 +756,61 @@ class _ChatUITextFieldState extends State<ChatUITextField> {
         ],
       ),
     );
+  }
+
+  Widget _buildAnimatedButton({
+    required bool visible,
+    required Offset offset,
+    required Widget icon,
+    required VoidCallback onTap,
+  }) {
+    return AnimatedContainer(
+      duration: const Duration(milliseconds: 250),
+      width: visible ? 52 : 0,
+      child: SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        physics: const NeverScrollableScrollPhysics(),
+        child: AnimatedOpacity(
+          opacity: visible ? 1 : 0,
+          duration: const Duration(milliseconds: 200),
+          child: Transform.translate(
+            offset: visible ? Offset.zero : offset,
+            child: IconButton(
+              constraints: const BoxConstraints(),
+              onPressed: visible ? onTap : null,
+              icon: icon,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> getLocation() async {
+    try {
+      final LocationPermission permission =
+          await Geolocator.requestPermission();
+
+      if (permission == LocationPermission.denied ||
+          permission == LocationPermission.deniedForever) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Location permission denied')),
+        );
+        return;
+      }
+
+      final Position position = await Geolocator.getCurrentPosition(
+        locationSettings: LocationSettings(accuracy: LocationAccuracy.best),
+      );
+
+      final String locationString =
+          '${position.latitude}|${position.longitude}';
+
+      widget.onLocationSelected?.call(locationString);
+    } catch (e) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error getting location: $e')),
+      );
+    }
   }
 }

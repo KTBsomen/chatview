@@ -93,6 +93,38 @@ class ReplyMessageView extends StatelessWidget {
             ),
           ],
         ),
+      MessageType.location => Row(
+          children: [
+            Icon(
+              Icons.location_on,
+              size: 20,
+              color:
+                  sendMessageConfig?.replyMessageColor ?? Colors.grey.shade700,
+            ),
+            Text(
+              PackageStrings.location,
+              style: TextStyle(
+                color: sendMessageConfig?.replyMessageColor ?? Colors.black,
+              ),
+            ),
+          ],
+        ),
+      MessageType.files => Row(
+          children: [
+            Icon(
+              Icons.attach_file,
+              size: 20,
+              color:
+                  sendMessageConfig?.replyMessageColor ?? Colors.grey.shade700,
+            ),
+            Text(
+              PackageStrings.files,
+              style: TextStyle(
+                color: sendMessageConfig?.replyMessageColor ?? Colors.black,
+              ),
+            ),
+          ],
+        ),
       MessageType.custom when customMessageReplyViewBuilder != null =>
         customMessageReplyViewBuilder!(message),
       MessageType.custom || MessageType.text => Text(

@@ -28,6 +28,8 @@ enum MessageType {
   image,
   text,
   video,
+  location,
+  files,
 
   /// Only supported on android and ios
   voice,
@@ -46,6 +48,10 @@ enum MessageType {
       return video;
     } else if (type == custom.name) {
       return custom;
+    } else if (type == location.name) {
+      return location;
+    } else if (type == files.name) {
+      return files;
     }
     return null;
   }

@@ -264,6 +264,7 @@ class SendMessageWidgetState extends State<SendMessageWidget> {
                                 sendMessageConfig: widget.sendMessageConfig,
                                 onRecordingComplete: _onRecordingComplete,
                                 onImageSelected: _onImageSelected,
+                                onLocationSelected: _onLocationSelected,
                               )
                             ],
                           ),
@@ -281,6 +282,13 @@ class SendMessageWidgetState extends State<SendMessageWidget> {
     if (path != null) {
       widget.onSendTap.call([path], replyMessage, MessageType.voice, false);
       _assignRepliedMessage();
+    }
+  }
+
+  void _onLocationSelected(String latlong) {
+    if (latlong.isNotEmpty) {
+      widget.onSendTap
+          .call([latlong], replyMessage, MessageType.location, false);
     }
   }
 

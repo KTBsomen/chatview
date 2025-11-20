@@ -36,4 +36,6 @@ class PackageStrings {
   static const String send = "Send";
   static const String you = "You";
   static const String report = "Report";
+  static const String location = "Location";
+  static const String files = "Files";
 }

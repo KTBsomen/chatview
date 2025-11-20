@@ -22,6 +22,7 @@
 
 import 'package:chatview/chatview.dart';
 import 'package:chatview/src/widgets/chat_view_inherited_widget.dart';
+import 'package:chatview/src/widgets/location_message_view.dart';
 import 'package:chatview/src/widgets/video_message_view.dart';
 import 'package:flutter/material.dart';
 
@@ -249,7 +250,19 @@ class _MessageViewState extends State<MessageView>
                     highlightVideo: widget.shouldHighlight,
                     highlightScale: widget.highlightScale,
                   );
+                } else if (widget.message.messageType.isLocation) {
+                  return LocationMessageView(
+                    message: widget.message,
+                    isMessageBySender: widget.isMessageBySender,
+                    inComingChatBubbleConfig: widget.inComingChatBubbleConfig,
+                    outgoingChatBubbleConfig: widget.outgoingChatBubbleConfig,
+                    messageReactionConfig: messageConfig?.messageReactionConfig,
+                    chatBubbleMaxWidth: widget.chatBubbleMaxWidth,
+                    highlightColor: widget.highlightColor,
+                    highlightMessage: widget.shouldHighlight,
+                  );
                 }
+
                 //  else if (widget.message.messageType.isFile) {
                 //   return FileMessageView(
                 //     message: widget.message,
